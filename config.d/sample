@@ -1,0 +1,7 @@
+backup_name sample
+mail_report NO
+mail_report_address email@example.com
+user myRemoteHostUser
+host myRemoteHost
+source_folder pathToTheRemoteHostFolderToSync
+dest_folder pathToTheLocalFolder
