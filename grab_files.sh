@@ -44,7 +44,6 @@ do
   eval "$command"
   if [[  $reporting == "YES" ]]
   then
-    echo "cat ./results/result_$configName | mail -s \"backup status of $configName\" $reporting_address"
     eval "cat ./results/result_$configName | mail -s \"backup status of $configName\" $reporting_address"
   fi
 done
