@@ -9,6 +9,7 @@ USER_REGEX='user[[:space:]]([a-zA-Z0-9_-]+)'
 HOST_REGEX='host[[:space:]]([a-zA-Z0-9_.-]+)'
 SOURCE_REGEX='source_folder[[:space:]]([a-zA-Z0-9_./\/-]+)'
 DEST_REGEX='dest_folder[[:space:]]([a-zA-Z0-9_./\/-]+)'
+LIMIT_BACKUP_NUMBER='limit_backup_number[[:space:]]([0-9]+)'
 
 get_config_part() {
   if [[ "$1" =~ $2 ]]
@@ -30,6 +31,7 @@ run_config() {
     host=$(get_config_part "$content" "$HOST_REGEX")
     source=$(get_config_part "$content" "$SOURCE_REGEX")
     dest=$(get_config_part "$content" "$DEST_REGEX")
+    limit_backup_number=$(get_config_part "$content" "$LIMIT_BACKUP_NUMBER")
     eval "> ./results/result_$configName"
     if [[ ${#user} == 0 || ${#host} == 0 || ${#source} == 0 || ${#dest} == 0 ]]
     then
@@ -43,6 +45,10 @@ run_config() {
     then
       eval "cat ./results/result_$configName | mail -s \"backup status of $configName\" $reporting_address"
     fi
+    limit_backup_number=$((limit_backup_number+1))
+#    echo $limit_backup_number;
+    eval "(cd $dest && ls -tp | tail -n +$limit_backup_number | xargs -I {} rm -r -- {})"
+
 }
 
 if [[ $1 != "" ]]
