@@ -34,10 +34,12 @@ run_config() {
     dest=$(get_config_part "$content" "$DEST_REGEX")
     limit_backup_number=$(get_config_part "$content" "$LIMIT_BACKUP_NUMBER_REGEX")
     compress=$(get_config_part "$content" "$COMPRESS_REGEX")
+
     eval "> ./results/result_$configName"
     if [[ ${#user} == 0 || ${#host} == 0 || ${#source} == 0 || ${#dest} == 0 ]]
     then
       eval "echo \"[ERROR] bad configuration\" > ./results/result_$configName"
+      exit 1
     fi
     bkpFolderDate=$(date +"%Y-%m-%d-%H-%M-%S")
     eval "mkdir $dest/$bkpFolderDate"
