@@ -6,3 +6,4 @@ host myRemoteHost
 source_folder pathToTheRemoteHostFolderToSync
 dest_folder pathToTheLocalFolder
 limit_backup_number 2
+compress_backup NO

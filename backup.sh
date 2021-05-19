@@ -9,7 +9,8 @@ USER_REGEX='user[[:space:]]([a-zA-Z0-9_-]+)'
 HOST_REGEX='host[[:space:]]([a-zA-Z0-9_.-]+)'
 SOURCE_REGEX='source_folder[[:space:]]([a-zA-Z0-9_./\/-]+)'
 DEST_REGEX='dest_folder[[:space:]]([a-zA-Z0-9_./\/-]+)'
-LIMIT_BACKUP_NUMBER='limit_backup_number[[:space:]]([0-9]+)'
+LIMIT_BACKUP_NUMBER_REGEX='limit_backup_number[[:space:]]([0-9]+)'
+COMPRESS_REGEX='compress_backup[[:space:]](YES|NO)'
 
 get_config_part() {
   if [[ "$1" =~ $2 ]]
@@ -31,19 +32,25 @@ run_config() {
     host=$(get_config_part "$content" "$HOST_REGEX")
     source=$(get_config_part "$content" "$SOURCE_REGEX")
     dest=$(get_config_part "$content" "$DEST_REGEX")
-    limit_backup_number=$(get_config_part "$content" "$LIMIT_BACKUP_NUMBER")
+    limit_backup_number=$(get_config_part "$content" "$LIMIT_BACKUP_NUMBER_REGEX")
+    compress=$(get_config_part "$content" "$COMPRESS_REGEX")
     eval "> ./results/result_$configName"
     if [[ ${#user} == 0 || ${#host} == 0 || ${#source} == 0 || ${#dest} == 0 ]]
     then
       eval "echo \"[ERROR] bad configuration\" > ./results/result_$configName"
     fi
-    bkpFolderDate=$(date +"%Y-%m-%d-%r")
+    bkpFolderDate=$(date +"%Y-%m-%d-%H-%M-%S")
     eval "mkdir $dest/$bkpFolderDate"
     command="rsync -avve ssh $user@$host:$source $dest/$bkpFolderDate  --log-file=./results/result_$configName --timeout=10"
     eval "$command"
     if [[  $reporting == "YES" ]]
     then
       eval "cat ./results/result_$configName | mail -s \"backup status of $configName\" $reporting_address"
+    fi
+    if [[  $compress == "YES" ]]
+    then
+      eval "tar -zcf $dest/$bkpFolderDate.tgz $dest/$bkpFolderDate"
+      eval "rm -r $dest/$bkpFolderDate"
     fi
     limit_backup_number=$((limit_backup_number+1))
 #    echo $limit_backup_number;
