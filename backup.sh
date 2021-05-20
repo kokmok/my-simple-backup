@@ -1,6 +1,7 @@
 #!/bin/bash
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
-CONFIG_DIR="./config.d"
+CONFIG_DIR="$SCRIPT_DIR/config.d"
 CONFIG_FILES=$(ls "$CONFIG_DIR"/*)
 CONFIG_NAME_REGEX='backup_name[[:space:]]([a-zA-Z0-9_./\/-]+)'
 CONFIG_REPORTING='mail_report[[:space:]](YES|NO)'
@@ -35,19 +36,20 @@ run_config() {
     limit_backup_number=$(get_config_part "$content" "$LIMIT_BACKUP_NUMBER_REGEX")
     compress=$(get_config_part "$content" "$COMPRESS_REGEX")
 
-    eval "> ./results/result_$configName"
+    result_file="$SCRIPT_DIR/results/result_$configName"
+    eval "> $result_file"
     if [[ ${#user} == 0 || ${#host} == 0 || ${#source} == 0 || ${#dest} == 0 ]]
     then
-      eval "echo \"[ERROR] bad configuration\" > ./results/result_$configName"
+      eval "echo \"[ERROR] bad configuration\" > $result_file"
       exit 1
     fi
     bkpFolderDate=$(date +"%Y-%m-%d-%H-%M-%S")
     eval "mkdir $dest/$bkpFolderDate"
-    command="rsync -avve ssh $user@$host:$source $dest/$bkpFolderDate  --log-file=./results/result_$configName --timeout=10"
+    command="rsync -avve ssh $user@$host:$source $dest/$bkpFolderDate  --log-file=$result_file --timeout=10"
     eval "$command"
     if [[  $reporting == "YES" ]]
     then
-      eval "cat ./results/result_$configName | mail -s \"backup status of $configName\" $reporting_address"
+      eval "cat $result_file | mail -s \"backup status of $configName\" $reporting_address"
     fi
     if [[  $compress == "YES" ]]
     then
@@ -63,6 +65,7 @@ run_config() {
 if [[ $1 != "" ]]
 then
   run_config "$CONFIG_DIR/$1"
+  echo "runnng configuration of $1"
 else
   for entry in $CONFIG_FILES
   do
