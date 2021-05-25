@@ -1,6 +1,7 @@
 #!/bin/bash
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
+
 CONFIG_DIR="$SCRIPT_DIR/config.d"
 CONFIG_FILES=$(ls "$CONFIG_DIR"/*)
 CONFIG_NAME_REGEX='backup_name[[:space:]]([a-zA-Z0-9_./\/-]+)'
@@ -37,6 +38,10 @@ run_config() {
     compress=$(get_config_part "$content" "$COMPRESS_REGEX")
 
     result_file="$SCRIPT_DIR/results/result_$configName"
+    if [[ ! -d "$SCRIPT_DIR/results" ]]
+    then
+        eval "mkdir $SCRIPT_DIR/results"
+    fi
     eval "> $result_file"
     if [[ ${#user} == 0 || ${#host} == 0 || ${#source} == 0 || ${#dest} == 0 ]]
     then
