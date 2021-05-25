@@ -8,7 +8,7 @@ To launch a specific configuration, just add the name of the file as an argument
 
 To launch every configuration file do not precise any argument.
 
-## Paramèters
+## Parameters
 - `backup_name mybackupName` the name of your backup config. It is used for logging.
 - `mail_report NO` YES if you want the script to send you an email with the logs.
 - `mail_report_address email@example.com` the target mail report address.
