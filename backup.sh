@@ -3,7 +3,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 
 CONFIG_DIR="$SCRIPT_DIR/config.d"
-CONFIG_FILES=$(ls "$CONFIG_DIR"/*)
+CONFIG_FILES=("$CONFIG_DIR"/*)
 CONFIG_NAME_REGEX='backup_name[[:space:]]([a-zA-Z0-9_./\/-]+)'
 CONFIG_REPORTING='mail_report[[:space:]](YES|NO)'
 CONFIG_REPORTING_ADDRESS='mail_report_address[[:space:]]([a-zA-Z0-9_./\/-]+@[a-zA-Z0-9_./\/-]+)'
@@ -14,6 +14,8 @@ DEST_REGEX='dest_folder[[:space:]]([a-zA-Z0-9_./\/-]+)'
 LIMIT_BACKUP_NUMBER_REGEX='limit_backup_number[[:space:]]([0-9]+)'
 COMPRESS_REGEX='compress_backup[[:space:]](YES|NO)'
 RSYNC_ERROR_REGEX='rsync[[:space:]]error'
+RECEIVED_REGEX='received[[:space:]]([0-9,]+)[[:space:]]bytes'
+ERROR=false
 
 get_config_part() {
   if [[ "$1" =~ $2 ]]
@@ -38,62 +40,64 @@ run_config() {
     limit_backup_number=$(get_config_part "$content" "$LIMIT_BACKUP_NUMBER_REGEX")
     compress=$(get_config_part "$content" "$COMPRESS_REGEX")
 
-    if [[ ! -d "$SCRIPT_DIR/results" ]]
-    then
-        eval "mkdir $SCRIPT_DIR/results"
-    fi
+    mkdir -p "$SCRIPT_DIR/results"
 
     result_file="$SCRIPT_DIR/results/result_$configName"
-    if [[ ! -f "$result_file" ]]
+
+    if [ ! -f "$result_file" ]; then touch "$result_file"; fi
+    echo "" > "$result_file"
+
+    missing_config_values=()
+    for config_values in user host source dest
+    do test "${!config_values}" || missing_config_values+=("$config_values")
+    done
+    if [ "${missing_config_values[*]}" ]
     then
-        eval "touch $result_file"
+        printf '[ERROR] configuration missing value for "%s"\n' "${missing_config_values[@]}" |
+            tee "$result_file" >&2
+        exit 1
     fi
-    eval "> $result_file"
 
-
-
-    if [[ ${#user} == 0 || ${#host} == 0 || ${#source} == 0 || ${#dest} == 0 ]]
-    then
-      eval "echo \"[ERROR] bad configuration\" > $result_file"
-      exit 1
-    fi
 #    If not exist try to create it
+    mkdir -p "$SCRIPT_DIR/results"
+    mkdir -p "$dest"
+
     if [[ ! -d "$dest" ]]
     then
-        eval "mkdir $dest > $result_file"
-    fi
-#    if still not exists, exit
-    if [[ ! -d "$dest" ]]
-    then
-        eval "echo \"[ERROR] bad configuration: dest directory not exists\" > $result_file"
+      echo "[ERROR] bad configuration: dest directory does not exists and cannot be created" | tee "$result_file" >&2
       exit 1
     fi
 
     bkpFolderDate=$(date +"%Y-%m-%d-%H-%M-%S")
-    eval "mkdir $dest/$bkpFolderDate > $result_file"
-    command="rsync -avve ssh $user@$host:$source $dest/$bkpFolderDate  --log-file=$result_file --timeout=10"
-    eval "$command"
-    if [[  $reporting == "YES" ]]
-    then
-      eval "cat $result_file | mail -s \"backup status of $configName\" $reporting_address"
-    fi
-    if [[  $compress == "YES" ]]
-    then
-      eval "tar -zcf $dest/$bkpFolderDate.tgz $dest/$bkpFolderDate"
-      eval "rm -r $dest/$bkpFolderDate"
-    fi
+    mkdir "$dest/$bkpFolderDate" > "$result_file" #not sure it returns something
 
+    rsync -avve ssh "$user"@"$host":"$source" "$dest"/"$bkpFolderDate"  --log-file="$result_file" --timeout=10
+
+    if [ $compress == "YES" ]
+    then
+      tar -zcf "$dest/$bkpFolderDate.tgz $dest/$bkpFolderDate"
+      rm -r "$dest/$bkpFolderDate"
+    fi
 
     if [[ $(cat "$result_file") =~ $RSYNC_ERROR_REGEX ]]
     then
       echo "rsync failed"
-      eval "rm $dest/$bkpFolderDate -r"
+      rm -r "$dest/$bkpFolderDate"
+      ERROR=true
     else
       echo "rsync succeeded"
       limit_backup_number=$((limit_backup_number+1))
-      eval "(cd $dest && ls -tp | tail -n +$limit_backup_number | xargs -I {} rm -r -- {})"
+      cd "$dest" && ls -tp | tail -n +"$limit_backup_number" | xargs -I {} rm -r -- {}
     fi
 
+    if [ $reporting == "YES" ]
+    then
+      if [ $ERROR == true ];then error_title="[ERROR]";else error_title="";fi
+      if [[ $(cat "$result_file") =~ $RECEIVED_REGEX ]];then received="${BASH_REMATCH[1]}";else received="0";fi
+      received=$(echo "$received" | sed 's/,//g')
+      receivedInMo=$((received/1048576))
+      cat "$result_file" | mail -s "$error_title backup status of $configName ($receivedInMo Mo)" "$reporting_address"
+    fi
 }
 
 if [[ $1 != "" ]]
@@ -101,12 +105,8 @@ then
   echo "running configuration of $1"
   run_config "$CONFIG_DIR/$1"
 else
-  for entry in $CONFIG_FILES
+  for entry in "${CONFIG_FILES[@]}"
   do
-    if [[ "$entry" =~ 'sample' ]]
-    then
-      continue
-    fi
-    run_config $entry
+    [[ "$entry" =~ 'sample' ]] || run_config $entry
   done
 fi
