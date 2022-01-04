@@ -96,7 +96,8 @@ run_config() {
       if [[ $(cat "$result_file") =~ $RECEIVED_REGEX ]];then received="${BASH_REMATCH[1]}";else received="0";fi
       received=$(echo "$received" | sed 's/,//g')
       receivedInMo=$((received/1048576))
-      cat "$result_file" | mail -s "$error_title backup status of $configName ($receivedInMo Mo)" "$reporting_address"
+#      cat "$result_file" | mail -s "$error_title backup status of $configName ($receivedInMo Mo)" "$reporting_address"
+      echo -e "Subject: $error_title backup status of $configName ($receivedInMo Mo)\n\n$(<$result_file)" | sendmail "$reporting_address"
     fi
 }
 
